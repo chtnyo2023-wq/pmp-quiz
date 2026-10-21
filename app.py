@@ -6,7 +6,8 @@ from pathlib import Path
 from typing import List, Dict, Set
 
 # 已修正為正確金鑰 (CZCD0C) 與你 cURL 驗證通過的模型名稱
-API_KEY = st.secrets.get("GEMINI_API_KEY", "AQ.Ab8RN6J7CZCD0CqkeGtfE36ZitWXR4QcZhGK7uuKGy2L9ar_Eg")MODEL_NAME = "gemini-flash-latest"
+API_KEY = st.secrets.get("GEMINI_API_KEY", "AQ.Ab8RN6J7CZCD0CqkeGtfE36ZitWXR4QcZhGK7uuKGy2L9ar_Eg")
+MODEL_NAME = "gemini-flash-latest"
 
 # =====================================================================
 # 1. AI 盲點拆解請求函式 (完全對齊官方 cURL Header 寫法)
