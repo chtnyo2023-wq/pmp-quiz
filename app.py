@@ -1,20 +1,19 @@
 import streamlit as st
 import json
 import random
-import requests
 from pathlib import Path
 from typing import List, Dict, Set
+from google import genai
+from google.genai import types
 
-# 已修正為正確金鑰 (CZCD0C) 與你 cURL 驗證通過的模型名稱
+# 優先讀取 Streamlit Secrets，若無則使用寫死的預設金鑰
 API_KEY = st.secrets.get("GEMINI_API_KEY", "AQ.Ab8RN6J7CZCD0CqkeGtfE36ZitWXR4QcZhGK7uuKGy2L9ar_Eg")
 MODEL_NAME = "gemini-flash-latest"
 
 # =====================================================================
-# 1. AI 盲點拆解請求函式 (完全對齊官方 cURL Header 寫法)
+# 1. AI 盲點拆解請求函式 (升級為官方 SDK，完美相容 AQ 金鑰)
 # =====================================================================
 def generate_ai_explanation(question_data: dict, user_ans: list, correct_ans: list) -> str:
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_NAME}:generateContent"
-    
     options_str = "\n".join([f"{k}: {v}" for k, v in question_data.get("options_zh", question_data["options"]).items()])
     
     prompt = f"""你是一位精通台灣長宏 PMP 教材的專案管理教練。學員剛答錯了一道題目。
@@ -36,21 +35,14 @@ def generate_ai_explanation(question_data: dict, user_ans: list, correct_ans: li
 2. ✅ **正解邏輯**：說明題幹中的哪個關鍵線索指向正確答案「{', '.join(correct_ans)}」，以及背後對應的長宏/PMBOK 流程原則。
 3. 💡 **長宏考場秒殺口訣**：給出一句好記的核心判斷法則，下次看到類似情境能 3 秒選出正解。
 """
-
-    headers = {
-        "Content-Type": "application/json",
-        "X-goog-api-key": API_KEY
-    }
-    data = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.2}
-    }
-    
     try:
-        response = requests.post(url, headers=headers, json=data, timeout=30)
-        if response.status_code == 200:
-            return response.json()['candidates'][0]['content']['parts'][0]['text']
-        return f"⚠️ API 發生錯誤 ({response.status_code})：{response.text}"
+        client = genai.Client(api_key=API_KEY)
+        response = client.models.generate_content(
+            model=MODEL_NAME,
+            contents=prompt,
+            config=types.GenerateContentConfig(temperature=0.2)
+        )
+        return response.text
     except Exception as e:
         return f"⚠️ 連線失敗，無法載入解析。錯誤：{e}"
 
@@ -61,7 +53,6 @@ class PMPAdaptiveEngine:
     def __init__(self, question_bank_json: str):
         with open(question_bank_json, "r", encoding="utf-8") as f:
             raw_pool = json.load(f)
-        # 優先過濾出已完成中文翻譯的題目，若還在翻譯中也能邊翻邊刷！
         translated_pool = [q for q in raw_pool if "question_text_zh" in q and "options_zh" in q]
         self.full_pool = translated_pool if len(translated_pool) >= 20 else raw_pool
             
@@ -151,14 +142,12 @@ class PMPAdaptiveEngine:
 
         return {"round_score": round_score, "wrong_questions": wrong_questions}
 
-
 # =====================================================================
 # 3. Streamlit 網頁應用程式介面
 # =====================================================================
 st.set_page_config(page_title="PMP 適性化刷題系統", page_icon="🎯", layout="centered")
 
 if "engine" not in st.session_state:
-    # 優先載入 Gemini 高品質翻譯版題庫
     bank_file = "pmp_1300_bilingual_pro.json" if Path("pmp_1300_bilingual_pro.json").exists() else "pmp_1300_bilingual.json"
     try:
         st.session_state.engine = PMPAdaptiveEngine(bank_file)
