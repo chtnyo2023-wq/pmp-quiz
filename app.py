@@ -1,17 +1,16 @@
 import streamlit as st
 import json
 import random
+import requests
 from pathlib import Path
 from typing import List, Dict, Set
-from google import genai
-from google.genai import types
 
 # 優先讀取 Streamlit Secrets，若無則使用寫死的預設金鑰
-API_KEY = st.secrets.get("GEMINI_API_KEY", "AQ.Ab8RN6J7CZCD0CqkeGtfE36ZitWXR4QcZhGK7uuKGy2L9ar_Eg")
+API_KEY = st.secrets.get("GEMINI_API_KEY", "AQ.Ab8RN6IC7jFzWO-BLCyz_kJjJc_C9r6GTPXzVqQiTtj8hYo1Yw")
 MODEL_NAME = "gemini-flash-latest"
 
 # =====================================================================
-# 1. AI 盲點拆解請求函式 (升級為官方 SDK，完美相容 AQ 金鑰)
+# 1. AI 盲點拆解請求函式 (使用原生 requests，完美相容 AQ 金鑰)
 # =====================================================================
 def generate_ai_explanation(question_data: dict, user_ans: list, correct_ans: list) -> str:
     options_str = "\n".join([f"{k}: {v}" for k, v in question_data.get("options_zh", question_data["options"]).items()])
@@ -35,14 +34,25 @@ def generate_ai_explanation(question_data: dict, user_ans: list, correct_ans: li
 2. ✅ **正解邏輯**：說明題幹中的哪個關鍵線索指向正確答案「{', '.join(correct_ans)}」，以及背後對應的長宏/PMBOK 流程原則。
 3. 💡 **長宏考場秒殺口訣**：給出一句好記的核心判斷法則，下次看到類似情境能 3 秒選出正解。
 """
+    
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_NAME}:generateContent"
+    
+    # 完美重現你之前成功的 cURL Header
+    headers = {
+        "Content-Type": "application/json",
+        "X-goog-api-key": API_KEY
+    }
+    
+    data = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"temperature": 0.2}
+    }
+    
     try:
-        client = genai.Client(api_key=API_KEY)
-        response = client.models.generate_content(
-            model=MODEL_NAME,
-            contents=prompt,
-            config=types.GenerateContentConfig(temperature=0.2)
-        )
-        return response.text
+        response = requests.post(url, headers=headers, json=data, timeout=30)
+        if response.status_code == 200:
+            return response.json()['candidates'][0]['content']['parts'][0]['text']
+        return f"⚠️ API 發生錯誤 ({response.status_code})：{response.text}"
     except Exception as e:
         return f"⚠️ 連線失敗，無法載入解析。錯誤：{e}"
 
