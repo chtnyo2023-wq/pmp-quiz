@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import List, Dict, Set
 
 # 優先讀取 Streamlit Secrets，若無則使用寫死的預設金鑰
-API_KEY = st.secrets.get("GEMINI_API_KEY", "AQ.Ab8RN6IC7jFzWO-BLCyz_kJjJc_C9r6GTPXzVqQiTtj8hYo1Yw")
+API_KEY = st.secrets.get("GEMINI_API_KEY", "AQ.Ab8RN6IoTzjpp7WJnQzCxBbGKXaJMS-9wg2Q64pZki5xnM2ZrA")
 MODEL_NAME = "gemini-flash-latest"
 
 # =====================================================================
