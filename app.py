@@ -5,13 +5,20 @@ import requests
 from pathlib import Path
 from typing import List, Dict, Set
 
-# 👇 使用你最新申請的個人帳號 AQ 金鑰
-API_KEY = st.secrets.get("GEMINI_API_KEY", "AQ.Ab8RN6KLlttudojpBAsQufA1FLOtqul5GM7UzkwGmO10WfZjuQ")
-# 鎖定最穩定的 1.5-flash 模型
+# =====================================================================
+# 🛑 強制從 Streamlit 後台讀取金鑰，避免在 Public GitHub 被 Google 秒殺
+# =====================================================================
+try:
+    # .strip() 用來防呆，避免你在後台貼上金鑰時不小心多複製了空白鍵
+    API_KEY = st.secrets["GEMINI_API_KEY"].strip()
+except KeyError:
+    st.error("⚠️ 系統找不到金鑰！請前往 Streamlit 右下角 Manage app -> Settings -> Secrets 設定 GEMINI_API_KEY。")
+    st.stop()
+
 MODEL_NAME = "gemini-1.5-flash"
 
 # =====================================================================
-# 1. AI 盲點拆解請求函式 (網址直連破解版)
+# 1. AI 盲點拆解請求函式 (網址直連版)
 # =====================================================================
 def generate_ai_explanation(question_data: dict, user_ans: list, correct_ans: list) -> str:
     options_str = "\n".join([f"{k}: {v}" for k, v in question_data.get("options_zh", question_data["options"]).items()])
@@ -36,12 +43,9 @@ def generate_ai_explanation(question_data: dict, user_ans: list, correct_ans: li
 3. 💡 **長宏考場秒殺口訣**：給出一句好記的核心判斷法則，下次看到類似情境能 3 秒選出正解。
 """
     
-    # 👑 終極破解法：直接把 API Key 塞進網址的 ?key= 參數中，完全繞過標頭解析 Bug！
+    # 完美繞過標頭解析 Bug，直接將金鑰帶在網址後方
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_NAME}:generateContent?key={API_KEY}"
-    
-    # 標頭只需要宣告我們傳送的是 JSON，完全不放金鑰
     headers = {"Content-Type": "application/json"}
-    
     data = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {"temperature": 0.2}
