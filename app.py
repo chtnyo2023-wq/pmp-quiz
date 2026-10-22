@@ -5,12 +5,13 @@ import requests
 from pathlib import Path
 from typing import List, Dict, Set
 
-# 優先讀取 Streamlit Secrets，若無則使用寫死的預設金鑰
+# 👇 優先讀取雲端密碼本，若無則使用寫死在此的金鑰 (請換成你最新的 AQ 金鑰)
 API_KEY = st.secrets.get("GEMINI_API_KEY", "AQ.Ab8RN6KLlttudojpBAsQufA1FLOtqul5GM7UzkwGmO10WfZjuQ")
-MODEL_NAME = "gemini-flash-latest"
+# 使用最穩定的 1.5 版本確保端點絕對存在
+MODEL_NAME = "gemini-1.5-flash"
 
 # =====================================================================
-# 1. AI 盲點拆解請求函式 (使用原生 requests，完美相容 AQ 金鑰)
+# 1. AI 盲點拆解請求函式 (雙重授權破解版)
 # =====================================================================
 def generate_ai_explanation(question_data: dict, user_ans: list, correct_ans: list) -> str:
     options_str = "\n".join([f"{k}: {v}" for k, v in question_data.get("options_zh", question_data["options"]).items()])
@@ -37,24 +38,27 @@ def generate_ai_explanation(question_data: dict, user_ans: list, correct_ans: li
     
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_NAME}:generateContent"
     
-    # 完美重現你之前成功的 cURL Header
-    headers = {
-        "Content-Type": "application/json",
-        "X-goog-api-key": API_KEY
-    }
-    
     data = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {"temperature": 0.2}
     }
     
-    try:
-        response = requests.post(url, headers=headers, json=data, timeout=30)
-        if response.status_code == 200:
-            return response.json()['candidates'][0]['content']['parts'][0]['text']
-        return f"⚠️ API 發生錯誤 ({response.status_code})：{response.text}"
-    except Exception as e:
-        return f"⚠️ 連線失敗，無法載入解析。錯誤：{e}"
+    # 👑 終極防護網：同時準備 Bearer 與 API Key 兩種標頭，哪個過關就用哪個！
+    headers_bearer = {"Content-Type": "application/json", "Authorization": f"Bearer {API_KEY}"}
+    headers_api = {"Content-Type": "application/json", "X-goog-api-key": API_KEY}
+    
+    last_error = ""
+    # 自動測試兩種連線方式
+    for headers in [headers_bearer, headers_api]:
+        try:
+            response = requests.post(url, headers=headers, json=data, timeout=30)
+            if response.status_code == 200:
+                return response.json()['candidates'][0]['content']['parts'][0]['text']
+            last_error = f"狀態碼 {response.status_code} - {response.text}"
+        except Exception as e:
+            last_error = str(e)
+            
+    return f"⚠️ 伺服器拒絕連線，詳細原因：{last_error}"
 
 # =====================================================================
 # 2. 適性化抽題引擎 (PMP Adaptive Engine)
