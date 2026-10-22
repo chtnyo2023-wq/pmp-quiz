@@ -15,7 +15,7 @@ except KeyError:
     st.error("⚠️ 系統找不到金鑰！請前往 Streamlit 右下角 Manage app -> Settings -> Secrets 設定 GEMINI_API_KEY。")
     st.stop()
 
-MODEL_NAME = "gemini-1.5-flash"
+MODEL_NAME = "gemini-flash-latest"
 
 # =====================================================================
 # 1. AI 盲點拆解請求函式 (網址直連版)
